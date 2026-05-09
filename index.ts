@@ -6,6 +6,10 @@ import {
 } from "@modelcontextprotocol/sdk/types.js";
 import os from "os";
 import { WebSocketServer, WebSocket } from 'ws';
+import express from 'express';
+import path from 'path';
+import { fileURLToPath } from 'url';
+import * as fs from "node:fs/promises";
 
 // Define a better structure for your logs
 interface McpLog {
@@ -15,12 +19,21 @@ interface McpLog {
   message?: string; // Optional: store the error message if it fails
 }
 
+const app = express();
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const LOG_FILE = "logs.json";
 const requestLog: McpLog[] = [];
 
 // Create a WebSocket server on port 8080
 const wss = new WebSocketServer({ port: 8080 });
 let clients: WebSocket[] = [];
 
+
+app.use(express.static(path.join(__dirname, '../dashboard')));
+
+app.listen(3000, () => {
+  console.error("Dashboard available at http://localhost:3000");
+});
 
 wss.on('connection', (ws) => {
   clients.push(ws);
@@ -32,14 +45,46 @@ wss.on('connection', (ws) => {
   });
 });
 
+wss.on('error', (error) => {
+  console.error("WebSocket Server Error:", error);
+});
+
+// Save logs whenever a new one is added
+async function saveLogs() {
+  await fs.writeFile(LOG_FILE, JSON.stringify(requestLog, null, 2));
+}
+
 // Helper function to broadcast to all open dashboards
-function broadcastLog(logEntry: McpLog) {
+// Helper function to broadcast to all open dashboards and persist data
+async function broadcastLog(logEntry: McpLog) {
   const message = JSON.stringify({ type: 'NEW_LOG', data: logEntry });
+  
+  // 1. Send to all connected web clients
   clients.forEach(client => {
     if (client.readyState === WebSocket.OPEN) {
       client.send(message);
     }
   });
+
+  // 2. Save to the JSON database file
+  try {
+    await saveLogs();
+  } catch (error) {
+    console.error("Failed to save logs to file:", error);
+  }
+}
+
+
+
+async function loadLogs() {
+  try {
+    const data = await fs.readFile(LOG_FILE, "utf-8");
+    const savedLogs = JSON.parse(data);
+    requestLog.push(...savedLogs);
+  } catch (e) {
+    // If file doesn't exist, just start fresh
+    await fs.writeFile(LOG_FILE, "[]");
+  }
 }
 
 // 1. Initialize the Server
@@ -135,6 +180,8 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
     throw error; 
   }
 });
+
+await loadLogs();
 
 // 4. Start the server using Standard Input/Output
 const transport = new StdioServerTransport();

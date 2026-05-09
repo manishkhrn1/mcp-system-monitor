@@ -1,0 +1,38 @@
+[
+  {
+    "timestamp": "2026-05-09T03:32:34.612Z",
+    "tool": "get_system_stats",
+    "status": "success"
+  },
+  {
+    "timestamp": "2026-05-09T03:32:52.910Z",
+    "tool": "get_system_stats",
+    "status": "success"
+  },
+  {
+    "timestamp": "2026-05-09T03:32:53.194Z",
+    "tool": "get_system_stats",
+    "status": "success"
+  },
+  {
+    "timestamp": "2026-05-09T03:33:06.008Z",
+    "tool": "get_request_log",
+    "status": "success"
+  },
+  {
+    "timestamp": "2026-05-09T03:33:18.802Z",
+    "tool": "trigger_chaos",
+    "status": "error",
+    "message": "CRITICAL_FAILURE: Simulated crash."
+  },
+  {
+    "timestamp": "2026-05-09T03:33:25.291Z",
+    "tool": "get_request_log",
+    "status": "success"
+  },
+  {
+    "timestamp": "2026-05-09T03:37:12.218Z",
+    "tool": "get_system_stats",
+    "status": "success"
+  }
+]

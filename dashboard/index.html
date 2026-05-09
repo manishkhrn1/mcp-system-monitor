@@ -11,6 +11,10 @@
     </style>
 </head>
 <body class="bg-dark text-light">
+    <div class="mb-3">
+    <button class="btn btn-outline-primary btn-sm" onclick="filterLogs('all')">All</button>
+    <button class="btn btn-outline-danger btn-sm" onclick="filterLogs('error')">Errors Only</button>
+</div>
     <div class="container py-4">
         <h2 class="mb-4">🔍 MCP Real-Time Inspector</h2>
         <div id="log-container" class="d-flex flex-column-reverse">
@@ -43,6 +47,17 @@
             `;
             container.appendChild(card);
         }
+
+        function filterLogs(status) {
+    const cards = document.querySelectorAll('.log-card');
+    cards.forEach(card => {
+        if (status === 'all') {
+            card.style.display = 'block';
+        } else {
+            card.classList.contains('log-error') ? card.style.display = 'block' : card.style.display = 'none';
+        }
+    });
+}
     </script>
 </body>
 </html>

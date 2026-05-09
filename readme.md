@@ -12,3 +12,12 @@ This project implements the MCP standard to allow AI agents to interact with hos
 ## 📖 How to Test
 1. `npm run build`
 2. `npx @modelcontextprotocol/inspector node build/index.js`
+
+## 🏗️ Architecture
+- **Protocol:** MCP (Model Context Protocol) over Stdio.
+- **Real-time Feed:** WebSockets (ws) broadcasting tool telemetry.
+- **Backend:** Node.js / TypeScript.
+- **Frontend:** Bootstrap 5 with Vanilla JS.
+
+## 📈 Scalability
+The server utilizes a non-blocking event loop to handle AI requests via Stdio while simultaneously streaming logs to multiple web clients via a WebSocket server on port 8080.
