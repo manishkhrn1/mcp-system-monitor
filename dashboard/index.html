@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>MCP Live Debugger</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        .log-card { margin-bottom: 10px; border-left: 5px solid #ccc; }
+        .log-success { border-left-color: #28a745; }
+        .log-error { border-left-color: #dc3545; }
+        #log-container { height: 80vh; overflow-y: auto; }
+    </style>
+</head>
+<body class="bg-dark text-light">
+    <div class="container py-4">
+        <h2 class="mb-4">🔍 MCP Real-Time Inspector</h2>
+        <div id="log-container" class="d-flex flex-column-reverse">
+            </div>
+    </div>
+
+    <script>
+        const socket = new WebSocket('ws://localhost:8080');
+        const container = document.getElementById('log-container');
+
+        socket.onmessage = (event) => {
+            const msg = JSON.parse(event.data);
+            if (msg.type === 'INIT') {
+                msg.data.forEach(addLogToUI);
+            } else if (msg.type === 'NEW_LOG') {
+                addLogToUI(msg.data);
+            }
+        };
+
+        function addLogToUI(log) {
+            const card = document.createElement('div');
+            card.className = `card bg-secondary text-white log-card ${log.status === 'success' ? 'log-success' : 'log-error'} p-3`;
+            card.innerHTML = `
+                <div class="d-flex justify-content-between">
+                    <strong>${log.tool}</strong>
+                    <small>${new Date(log.timestamp).toLocaleTimeString()}</small>
+                </div>
+                <div>Status: ${log.status.toUpperCase()}</div>
+                ${log.message ? `<div class="text-warning small mt-2">${log.message}</div>` : ''}
+            `;
+            container.appendChild(card);
+        }
+    </script>
+</body>
+</html>

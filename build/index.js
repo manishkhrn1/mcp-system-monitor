@@ -2,7 +2,28 @@ import { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { CallToolRequestSchema, ListToolsRequestSchema, } from "@modelcontextprotocol/sdk/types.js";
 import os from "os";
+import { WebSocketServer, WebSocket } from 'ws';
 const requestLog = [];
+// Create a WebSocket server on port 8080
+const wss = new WebSocketServer({ port: 8080 });
+let clients = [];
+wss.on('connection', (ws) => {
+    clients.push(ws);
+    // Send the existing history immediately upon connection
+    ws.send(JSON.stringify({ type: 'INIT', data: requestLog }));
+    ws.on('close', () => {
+        clients = clients.filter(client => client !== ws);
+    });
+});
+// Helper function to broadcast to all open dashboards
+function broadcastLog(logEntry) {
+    const message = JSON.stringify({ type: 'NEW_LOG', data: logEntry });
+    clients.forEach(client => {
+        if (client.readyState === WebSocket.OPEN) {
+            client.send(message);
+        }
+    });
+}
 // 1. Initialize the Server
 const server = new Server({ name: "system-monitor", version: "1.0.0" }, { capabilities: { tools: {} } });
 // 2. Tell the AI what tools are available
@@ -55,23 +76,29 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         else if (toolName === "get_request_log") {
             result = { content: [{ type: "text", text: JSON.stringify(requestLog, null, 2) }] };
         }
-        // IF WE GET HERE, IT WAS A SUCCESS
-        requestLog.push({
+        const newEntry = {
             timestamp: new Date().toISOString(),
             tool: toolName,
             status: "success"
-        });
+        };
+        // IF WE GET HERE, IT WAS A SUCCESS
+        requestLog.push(newEntry);
+        broadcastLog(newEntry);
         return result || { content: [{ type: "text", text: "Tool executed." }] };
     }
     catch (error) {
         // IF WE GET HERE, IT WAS AN ERROR
         const errorMessage = error instanceof Error ? error.message : String(error);
-        requestLog.push({
+        // 1. Create the error entry object
+        const errorEntry = {
             timestamp: new Date().toISOString(),
             tool: toolName,
             status: "error",
             message: errorMessage
-        });
+        };
+        // 2. Push and Broadcast
+        requestLog.push(errorEntry);
+        broadcastLog(errorEntry); // Use errorEntry here
         // We still throw the error so the AI/Inspector knows it failed
         throw error;
     }

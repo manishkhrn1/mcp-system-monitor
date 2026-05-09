@@ -5,6 +5,7 @@ import {
   ListToolsRequestSchema,
 } from "@modelcontextprotocol/sdk/types.js";
 import os from "os";
+import { WebSocketServer, WebSocket } from 'ws';
 
 // Define a better structure for your logs
 interface McpLog {
@@ -16,11 +17,38 @@ interface McpLog {
 
 const requestLog: McpLog[] = [];
 
+// Create a WebSocket server on port 8080
+const wss = new WebSocketServer({ port: 8080 });
+let clients: WebSocket[] = [];
+
+
+wss.on('connection', (ws) => {
+  clients.push(ws);
+  // Send the existing history immediately upon connection
+  ws.send(JSON.stringify({ type: 'INIT', data: requestLog }));
+  
+  ws.on('close', () => {
+    clients = clients.filter(client => client !== ws);
+  });
+});
+
+// Helper function to broadcast to all open dashboards
+function broadcastLog(logEntry: McpLog) {
+  const message = JSON.stringify({ type: 'NEW_LOG', data: logEntry });
+  clients.forEach(client => {
+    if (client.readyState === WebSocket.OPEN) {
+      client.send(message);
+    }
+  });
+}
+
 // 1. Initialize the Server
+
 const server = new Server(
   { name: "system-monitor", version: "1.0.0" },
   { capabilities: { tools: {} } }
 );
+
 
 // 2. Tell the AI what tools are available
 server.setRequestHandler(ListToolsRequestSchema, async () => ({
@@ -77,26 +105,32 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       result = { content: [{ type: "text", text: JSON.stringify(requestLog, null, 2) }] };
     }
 
-    // IF WE GET HERE, IT WAS A SUCCESS
-    requestLog.push({ 
+    const newEntry: McpLog = { 
       timestamp: new Date().toISOString(), 
       tool: toolName, 
       status: "success" 
-    });
-    
+    };
+
+    // IF WE GET HERE, IT WAS A SUCCESS
+    requestLog.push(newEntry);
+    broadcastLog(newEntry);
     return result || { content: [{ type: "text", text: "Tool executed." }] };
 
   } catch (error) {
     // IF WE GET HERE, IT WAS AN ERROR
     const errorMessage = error instanceof Error ? error.message : String(error);
     
-    requestLog.push({ 
+// 1. Create the error entry object
+    const errorEntry: McpLog = { 
       timestamp: new Date().toISOString(), 
       tool: toolName, 
       status: "error",
       message: errorMessage
-    });
+    };
 
+    // 2. Push and Broadcast
+    requestLog.push(errorEntry);
+    broadcastLog(errorEntry); // Use errorEntry here
     // We still throw the error so the AI/Inspector knows it failed
     throw error; 
   }
